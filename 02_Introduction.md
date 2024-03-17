@@ -249,5 +249,3 @@ With time, these new primitives give birth to new ways of solving problems, and 
 - [General Container Image Guidelines](https://red.ht/2u6Ahvo)
 
 - [Pods](https://kubernetes.io/docs/user-guide/pods/)
-
-
