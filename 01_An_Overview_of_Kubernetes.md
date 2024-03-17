@@ -247,5 +247,3 @@ Fortunately, **Kubernetes makes the `DaemonSet` API available to users to inst
 **A `DaemonSet` provides a template for a Pod that should be run on every machine. When a `DaemonSet` is created, Kubernetes ensures that this Pod is running on each node in the cluster**.
 
 If, at some later point, a new node is added, Kubernetes creates a Pod on that node, as well. **Although by default Kubernetes places a Pod on every node in the cluster, a `DaemonSet` can also provide a node selector label query, and Kubernetes will only place that `DaemonSet`’s Pods onto nodes that match that label query**.
-
-
