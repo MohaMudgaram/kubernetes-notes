@@ -26,7 +26,7 @@ The below figure shows the mixture of the skills required for creating good clou
 
 ![The path to cloud-native](https://learning.oreilly.com/api/v2/epubs/urn:orm:book:9781492050278/files/assets/kupa_0101.png)
 
-###### Figure 1-1. The path to cloud native
+###### The path to cloud native
 
 At a high level, there are multiple abstraction levels in a cloud-native application that require different design considerations:
 
@@ -121,3 +121,133 @@ However, most cloud-native platforms offer another primitive for managing the li
 **All containers in a Pod are always scheduled to the same host, deployed together whether for scaling or host migration purposes, and can also share filesystem, networking, and process namespaces**.
 
 **This joint lifecycle allows the containers in a Pod to interact with each other over the filesystem or through networking via localhost or host interprocess communication mechanisms** if desired (for performance reasons, for example).
+
+As you can see in the below figure, at the development and build time, **a microservice corresponds to a container image that one team develops and releases**. But at runtime, **a microservice is represented by a Pod, which is the unit of deployment, placement, and scaling**. The only way to run a container—whether for scale or migration—is through the Pod abstraction. **Sometimes a Pod contains more than one container**. One such example is when a containerized microservice uses a helper container at runtime.
+
+![Pod as the deployment and management unit](https://learning.oreilly.com/api/v2/epubs/urn:orm:book:9781492050278/files/assets/kupa_0102.png)
+
+###### A Pod as the deployment and management unit
+
+Containers and Pods and their unique characteristics offer a new set of patterns and principles for designing microservices-based applications. We looked at some of the characteristics of well-designed containers; now let’s look at some of the characteristics of a Pod:
+
+- **A Pod is the atomic unit of scheduling**. That means the scheduler tries to find a host that satisfies the requirements of all containers that belong to the Pod (there are some specifics around init containers. If you create a Pod with many containers, the scheduler needs to find a host that has enough resources to satisfy all container demands combined.
+
+- **A Pod ensures colocation of containers**. Thanks to the colocation, containers in the same Pod have additional means to interact with each other. **The most common ways for communication include using a shared local filesystem for exchanging data or using the localhost network interface, or some host inter-process communication (IPC) mechanism for high-performance interactions**.
+
+- **A Pod has an IP address, name, and port range that are shared by all containers belonging to it**. That means **containers in the same Pod have to be carefully configured to avoid port clashes**, in the same way that parallel running Unix processes have to take care when sharing the networking space on a host.
+
+**A Pod is the atom of Kubernetes where your application lives, but you don’t access Pods directly**—that is where Services enter the scene.
+
+#### Services
+
+Pods are ephemeral—they can come and go at any time for all sort of reasons such as scaling up and down, failing container health checks, and node migrations.
+
+**A Pod IP address is known only after it is scheduled and started on a node. A Pod can be rescheduled to a different node if the existing node it is running on is no longer healthy**.
+
+All that means is the **Pod’s network address may change over the life of an application**, and there is a need for another primitive for discovery and load balancing.
+
+That’s where the Kubernetes Services come into play. The **Service is another simple but powerful Kubernetes abstraction that binds the Service name to an IP address and port number permanently**.
+
+So **a Service represents a named entry point for accessing an application**. In the most common scenario, **the Service serves as the entry point for a set of Pods**, but that might not always be the case.
+
+The Service is a generic primitive, and it may also point to functionality provided outside the Kubernetes cluster.
+
+As such, **the Service primitive can be used for Service discovery and load balancing, and allows altering implementations and scaling without affecting Service consumers**.
+
+## Labels
+
+We have seen that a microservice is a container at build time but represented by a Pod at runtime. So what is an application that consists of multiple microservices? Here, **Kubernetes offers two more primitives that can help you define the concept of an application: labels and namespaces**.
+
+Before microservices, an application corresponded to a single deployment unit with a single versioning scheme and release cycle. There was a single file for an application in the form of a *.war*, or *.ear* or some other packaging format. But then, applications got split into microservices, which are independently developed, released, run, restarted, or scaled.
+
+With microservices, the notion of an application diminishes, and there are no longer key artifacts or activities that we have to perform at the application level. However, if you still need **a way to indicate that some independent services belong to an application, *labels* can be used**. Let’s imagine that we have split one monolithic application into three microservices, and another application into two microservices.
+
+We now have five Pod definitions (and maybe many more Pod instances) that are independent of the development and runtime points of view. However, we may still need to indicate that the first three Pods represent an application and the other two Pods represent another application. Even the Pods may be independent, to provide a business value, but they may depend on each other. For example, one Pod may contain the containers responsible for the frontend, and the other two Pods are responsible for providing the backend functionality. If either of these Pods is down, the application is useless from a business point of view. Using label selectors gives us the ability to query and identify a set of Pods and manage it as one logical unit. The below figure shows how you can use labels to group the parts of a distributed application into specific subsystems.
+
+![Labels used as an application identity for Pods](https://learning.oreilly.com/api/v2/epubs/urn:orm:book:9781492050278/files/assets/kupa_0103.png)
+
+###### Labels used as an application identity for Pods
+
+Here are a few examples where labels can be useful:
+
+- **Labels are used by the ReplicaSets to keep some instances of a specific Pod running**. That means **every Pod definition needs to have a unique combination of labels used for scheduling**.
+
+- Labels are also used heavily by the scheduler. **The scheduler uses labels for co-locating or spreading Pods to place Pods on the nodes that satisfy the Pods’ requirements**.
+
+- **A Label can indicate a logical grouping of set of Pods and give an application identity to them**.
+
+- In addition to the preceding typical use cases, **labels can be used to store metadata. It may be difficult to predict what a label could be used for, but it is best to have enough labels to describe all important aspects of the Pods**. For example, having labels to indicate the logical group of an application, the business characteristics and criticality, the specific runtime platform dependencies such as hardware architecture, or location preferences are all useful.
+  
+  Later, **these labels can be used by the scheduler for more fine-grained scheduling, or the same labels can be used from the command line for managing the matching Pods at scale**. However, you should not go overboard and add too many labels in advance. You can always add them later if needed. **Removing labels is much riskier as there is no straight-forward way of finding out what a label is used for, and what unintended effect such an action may cause**.
+
+## Annotations
+
+Another primitive very similar to labels is called *annotations*. **Like labels, annotations are organized as a map, but they are intended for specifying nonsearchable metadata and for machine usage rather than human**.
+
+The information on the **annotations is not intended for querying and matching objects. Instead, it is intended for attaching additional metadata to objects from various tools and libraries we want to use**.
+
+Some examples of using annotations include build IDs, release IDs, image information, timestamps, Git branch names, pull request numbers, image hashes, registry addresses, author names, tooling information, and more.
+
+So while labels are used primarily for query matching and performing actions on the matching resources, **annotations are used to attach metadata that can be consumed by a machine**.
+
+## Namespaces
+
+Another primitive that can also help in the management of a group of resources is the Kubernetes *namespace*. As we have described, a namespace may seem similar to a label, but in reality, it is a very different primitive with different characteristics and purpose.
+
+**Kubernetes namespaces allow dividing a Kubernetes cluster (which is usually spread across multiple hosts) into a logical pool of resources**.
+
+**Namespaces provide scopes for Kubernetes resources and a mechanism to apply authorizations and other policies to a subsection of the cluster**.
+
+**The most common use case of namespaces is representing different software environments such as development, testing, integration testing, or production**.
+
+**Namespaces can also be used to achieve multitenancy, and provide isolation for team workspaces, projects, and even specific applications**.
+
+But ultimately, **for a greater isolation of certain environments, namespaces are not enough, and having separate clusters is common**.
+
+Typically, there is one nonproduction Kubernetes cluster used for some environments (development, testing, and integration testing) and another production Kubernetes cluster to represent performance testing and production environments.
+
+Let’s see some of the characteristics of namespaces and how they can help us in different scenarios:
+
+- **A namespace is managed as a Kubernetes resource**.
+
+- **A namespace provides scope for resources such as containers, Pods, Services, or ReplicaSets. The names of resources need to be unique within a namespace, but not across them**.
+
+- By default, **namespaces provide scope for resources, but nothing isolates those resources and prevents access from one resource to another**. For example, **a Pod from a development namespace can access another Pod from a production namespace as long as the Pod IP address is known**. However, **there are Kubernetes plugins that provide networking isolation to achieve true multitenancy across namespaces if desired**.
+
+- Some other **resources such as namespaces themselves, nodes, and PersistentVolumes do not belong to namespaces and should have unique cluster-wide names**.
+
+- **Each Kubernetes Service belongs to a namespace and gets a corresponding DNS address that has the namespace in the form of `<service-name>.<namespace-name>.svc.cluster.local`**. So **the namespace name is in the URI of every Service belonging to the given namespace**. That’s one reason it is vital to name namespaces wisely.
+
+- **ResourceQuotas provide constraints that limit the aggregated resource consumption per namespace**. With ResourceQuotas, **a cluster administrator can control the number of objects per type that are allowed in a namespace**. For example, a developer namespace may allow only five ConfigMaps, five Secrets, five Services, five ReplicaSets, five PersistentVolumeClaims, and ten Pods.
+
+- **ResourceQuotas can also limit the total sum of computing resources we can request in a given namespace**. For example, in a cluster with a capacity of 32 GB RAM and 16 cores, it is possible to allocate half of the resources—16 GB RAM and 8 cores—for the production namespace, 8 GB RAM and 4 cores for staging environment, 4 GB RAM and 2 cores for development, and the same amount for testing namespaces. **The ability of imposing resource constraints on a group of objects by using namespaces and ResourceQuotas is invaluable**.
+
+## Discussion
+
+We’ve only briefly covered a few of the main Kubernetes concepts we use. However, there are more primitives used by developers on a day-by-day basis. For example, if you create a containerized service, there are collections of Kubernetes objects you can use to reap all the benefits of Kubernetes. Keep in mind, these are only the objects used by application developers to integrate a containerized service into Kubernetes. There are also other concepts used by administrators to enable developers to manage the platform effectively. The below figure gives an overview of the multitude of Kubernetes resources that are useful for developers.
+
+![Kubernetes concepts for developers](https://learning.oreilly.com/api/v2/epubs/urn:orm:book:9781492050278/files/assets/kupa_0104.png)
+
+###### Kubernetes concepts for developers
+
+With time, these new primitives give birth to new ways of solving problems, and some of these repetitive solutions become patterns.
+
+## More Information
+
+- [Principles of Container-Based Application Design](https://red.ht/2HBKqYI)
+
+- [The Twelve-Factor App](https://12factor.net/)
+
+- [Domain-Driven Design: Tackling Complexity in the Heart of Software](http://dddcommunity.org/book/evans_2003)
+
+- [Container Best Practices](http://bit.ly/2TUyNTe)
+
+- [Best Practices for Writing Dockerfiles](https://dockr.ly/2TFZBaL)
+
+- [Container Patterns](http://bit.ly/2TFjsH2)
+
+- [General Container Image Guidelines](https://red.ht/2u6Ahvo)
+
+- [Pods](https://kubernetes.io/docs/user-guide/pods/)
+
+
